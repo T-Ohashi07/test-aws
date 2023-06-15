@@ -10,19 +10,25 @@ use Auth;       //認証モデルを使用する
 
 class BooksController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+    
     //本ダッシュボード表示
     public function index() {
-        $books = Book::orderBy('created_at', 'asc')->paginate(3);
+         $books = Book::where('user_id',Auth::user()->id)->orderBy('created_at', 'asc')->paginate(3);
         return view('books', [
             'books' => $books
         ]);
     }
     
     //更新画面
-    public function edit(Book $books) {
-        return view('booksedit', [
-            'book' => $books
-        ]);
+    public function edit($book_id){
+    $books = Book::where('user_id',Auth::user()->id)->find($book_id);
+    return view('booksedit', [
+        'book' => $books
+    ]);
     }
     
     //更新
@@ -43,7 +49,7 @@ class BooksController extends Controller
         }
         
         //データ更新
-        $books = Book::find($request->id);
+        $books = Book::where('user_id',Auth::user()->id)->find($request->id);
         $books->item_name   = $request->item_name;
         $books->item_number = $request->item_number;
         $books->item_amount = $request->item_amount;
@@ -67,14 +73,25 @@ class BooksController extends Controller
                     ->withInput()
                     ->withErrors($validator);
         }
+        
+        $file = $request->file('item_img'); //file取得
+          if( !empty($file) ){                //fileが空かチェック
+              $filename = $file->getClientOriginalName();   //ファイル名を取得
+              $move = $file->move('../upload/',$filename);  //ファイルを移動：パスが“./upload/”の場合もあるCloud9
+          }else{
+              $filename = "";
+          }
+          
         //Eloquentモデル（登録処理）
         $books = new Book;
+        $books->user_id  = Auth::user()->id;
         $books->item_name = $request->item_name;
         $books->item_number = $request->item_number;
         $books->item_amount = $request->item_amount;
+        $books->item_img = $filename;
         $books->published = $request->published;
         $books->save();
-        return redirect('/');
+        return redirect('/')->with('message', '本登録が完了しました');
     }
         
     //削除処理
